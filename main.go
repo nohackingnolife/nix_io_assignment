@@ -1,216 +1,13 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
+	"hw_nix_io/db/model"
+	"hw_nix_io/db/repos"
 	"os"
 )
 
 var filename string = "users.json"
-
-type User struct {
-	ID        int    `json:"id"`
-	FirstName string `json:"firstname"`
-	LastName  string `json:"lastname"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-}
-
-type UserRepositoryI interface {
-	Create(user *User) (int, error)
-	GetByEmail(email string) (*User, error)
-	GetAll() (*[]User, error)
-	Update(user *User) (*User, error)
-	Delete(id int) error
-}
-
-type UserRepository struct{}
-
-func (r *UserRepository) Create(user *User) (id int, err error) {
-	userJSON, err := json.Marshal(user)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return 0, err
-	}
-
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return 0, err
-	}
-	defer file.Close()
-
-	_, err = file.Write(append(userJSON, '\n'))
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return 0, err
-	}
-
-	return user.ID, nil
-}
-
-func (r *UserRepository) GetByEmail(email string) (*User, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		var u User
-		err := json.Unmarshal([]byte(scanner.Text()), &u)
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
-		}
-		if u.Email == email {
-			return &u, nil
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	return nil, nil
-}
-
-func (r *UserRepository) GetAll() (*[]User, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	var users []User
-
-	for scanner.Scan() {
-		var u User
-		err := json.Unmarshal([]byte(scanner.Text()), &u)
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
-		}
-		users = append(users, u)
-	}
-
-	if err := scanner.Err(); err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	return &users, nil
-}
-
-func (r *UserRepository) Update(user *User) (*User, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	var output []byte
-	isFound := false
-
-	for scanner.Scan() {
-		var u User
-		err := json.Unmarshal([]byte(scanner.Text()), &u)
-		if err != nil {
-			fmt.Println("Error: ", err)
-			return nil, err
-		}
-
-		if u.ID == user.ID {
-			data, err := json.Marshal(user)
-			if err != nil {
-				fmt.Println("Error: ", err)
-				return nil, err
-			}
-			output = append(output, data...)
-			isFound = true
-		} else {
-			output = append(output, []byte(scanner.Text())...)
-		}
-
-		output = append(output, '\n')
-	}
-
-	file.Close()
-
-	file, err = os.Create(filename)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return nil, err
-	}
-	defer file.Close()
-
-	_, err = file.Write(output)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return nil, err
-	}
-
-	if isFound {
-		return user, nil
-	}
-	return nil, nil
-}
-
-func (r *UserRepository) Delete(id int) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	var output []byte
-
-	for scanner.Scan() {
-		var u User
-		err := json.Unmarshal([]byte(scanner.Text()), &u)
-		if err != nil {
-			fmt.Println("Error: ", err)
-			return err
-		}
-		if u.ID == id {
-			continue
-		} else {
-			output = append(output, []byte(scanner.Text())...)
-			output = append(output, '\n')
-		}
-	}
-
-	file.Close()
-
-	file, err = os.Create(filename)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return err
-	}
-	defer file.Close()
-
-	_, err = file.Write(output)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return err
-	}
-
-	return err
-}
 
 func main() {
 	// create a file
@@ -222,10 +19,10 @@ func main() {
 	defer file.Close()
 
 	// initialize a repository
-	r := UserRepository{}
+	r := repos.UserRepository{Filename: "users.json"}
 
 	// create instances
-	user := &User{
+	user := &model.User{
 		ID:        1,
 		FirstName: "John",
 		LastName:  "Doe",
@@ -233,7 +30,7 @@ func main() {
 		Password:  "password",
 	}
 
-	user2 := &User{
+	user2 := &model.User{
 		ID:        2,
 		FirstName: "Will",
 		LastName:  "Smith",
